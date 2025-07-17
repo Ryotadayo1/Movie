@@ -15,7 +15,6 @@ class ReviewController extends Controller
     {
         $query = Review::with('user');
 
-        // movie_id がある場合は絞り込み
         if ($request->has('movie_id')) {
             $query->where('movie_id', $request->query('movie_id'));
         }
@@ -43,7 +42,13 @@ class ReviewController extends Controller
         $review->rating      = $validated['rating'];
         $review->save();
 
-        return response()->json(['message' => 'レビューを投稿しました', 'review' => $review], 201);
+        // 👇 ユーザー情報を含めたレビューを返す
+        $reviewWithUser = Review::with('user')->find($review->id);
+
+        return response()->json([
+            'message' => 'レビューを投稿しました',
+            'review'  => $reviewWithUser,
+        ], 201);
     }
 
     /**

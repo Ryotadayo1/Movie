@@ -39,7 +39,7 @@ export default function MovieReviews({ movieId }) {
     }, [movieId])
 
     const handleOpen = () => {
-        setEditingReview(null) // 新規投稿用
+        setEditingReview(null)
         setOpen(true)
     }
 
@@ -48,30 +48,55 @@ export default function MovieReviews({ movieId }) {
         setOpen(false)
     }
 
-    const addReview = newReview => {
-        if (editingReview) {
-            // 編集の場合、該当レビューを更新
-            setReviews(reviews.map(r => (r.id === newReview.id ? newReview : r)))
-        } else {
-            // 新規投稿の場合は追加
-            setReviews([...reviews, newReview])
+    const addReview = async ({ review_text, rating, id }) => {
+        try {
+            let response
+            if (id) {
+                // 編集モード
+                response = await laravelApiClient.put(`/api/reviews/${id}`, {
+                    movie_id: movieId,
+                    review_text,
+                    rating,
+                })
+            } else {
+                // 新規投稿
+                response = await laravelApiClient.post('/api/reviews', {
+                    movie_id: movieId,
+                    review_text,
+                    rating,
+                })
+            }
+
+            const newReview = response.data.review
+
+            if (id) {
+                // 編集反映
+                setReviews((prev) =>
+                    prev.map((r) => (r.id === id ? newReview : r)),
+                )
+            } else {
+                // 新規追加
+                setReviews((prev) => [...prev, newReview])
+            }
+
+            handleClose()
+        } catch (error) {
+            console.error('レビュー送信エラー:', error)
         }
-        setEditingReview(null)
     }
 
-    const handleDelete = async id => {
+    const handleDelete = async (id) => {
         if (window.confirm('このレビューを削除してもよろしいですか？')) {
             try {
                 await laravelApiClient.delete(`api/reviews/${id}`)
-                const filtered = reviews.filter(review => review.id !== id)
-                setReviews(filtered)
+                setReviews(reviews.filter((r) => r.id !== id))
             } catch (error) {
                 console.log(error)
             }
         }
     }
 
-    const handleEdit = review => {
+    const handleEdit = (review) => {
         setEditingReview(review)
         setOpen(true)
     }
@@ -90,7 +115,8 @@ export default function MovieReviews({ movieId }) {
                         color: '#333333',
                         '&:hover': { backgroundColor: '#A0A0A0' },
                         fontWeight: 'bold',
-                    }}>
+                    }}
+                >
                     レビューを投稿する
                 </Button>
             </div>
@@ -109,7 +135,8 @@ export default function MovieReviews({ movieId }) {
                         boxShadow: 24,
                         p: 4,
                         borderRadius: '10px',
-                    }}>
+                    }}
+                >
                     <IconButton
                         onClick={handleClose}
                         sx={{
@@ -118,7 +145,8 @@ export default function MovieReviews({ movieId }) {
                             right: 8,
                             padding: '10px',
                             '& .MuiSvgIcon-root': { fontSize: '2rem' },
-                        }}>
+                        }}
+                    >
                         <CloseIcon />
                     </IconButton>
                     <ReviewForm
@@ -131,17 +159,14 @@ export default function MovieReviews({ movieId }) {
             </Modal>
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 4 }}>
-                {reviews.map(review => (
-                    <Card
-                        key={review.id}
-                        sx={{ maxWidth: 800, margin: 'auto', width: '80%', p: '10px' }}>
+                {reviews.map((review) => (
+                    <Card key={review.id} sx={{ maxWidth: 800, margin: 'auto', width: '80%', p: '10px' }}>
                         <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                 <Typography variant="h6" component="div">
                                     {review.user.name}
                                 </Typography>
 
-                                {/* 削除・編集ボタン（自分のレビューにのみ表示） */}
                                 {review.user.id === user?.id && (
                                     <Box>
                                         <IconButton onClick={() => handleEdit(review)}>
@@ -167,7 +192,11 @@ export default function MovieReviews({ movieId }) {
                             <Typography sx={{ fontSize: '20px', mt: '10px' }}>
                                 {review.review_text}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ marginBottom: 1, textAlign: 'right' }}>
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ marginBottom: 1, textAlign: 'right' }}
+                            >
                                 {new Date(review.created_at).toLocaleString()}
                             </Typography>
                         </CardContent>
